@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Product List</title>
+    <!--
+        Step 1: Include Bootstrap CSS for styling.
+        Bootstrap provides pre-built styles for responsive layouts, cards, and more.
+    -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!--
+        Step 2: Include Tailwind CSS for additional utility classes.
+        This gives us more flexibility for quick styling like text sizes and colors.
+    -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /*
+            Step 3: Add some custom CSS for a cleaner look.
+            We'll use the 'Inter' font and add some basic styling for our cards.
+        */
+        body {
+            font-family: 'Inter', sans-serif; /* Set a modern font */
+            background-color: #f8f9fa; /* Light grey background for the whole page */
+        }
+        .container {
+            padding-top: 2rem;    /* Space at the top */
+            padding-bottom: 2rem; /* Space at the bottom */
+        }
+        .product-card {
+            border-radius: 0.75rem; /* Make card corners slightly rounded */
+            overflow: hidden; /* Ensures content stays within rounded corners */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Add a subtle shadow to cards */
+            transition: transform 0.2s ease-in-out; /* Smooth hover effect */
+            margin-bottom: 1.5rem; /* Space between product cards */
+        }
+        .product-card:hover {
+            transform: translateY(-5px); /* Lift card slightly on hover */
+        }
+        .product-image {
+            width: 100%; /* Image takes full width of its container */
+            height: 200px; /* Fixed height for all product images */
+            object-fit: cover; /* Ensures image covers the area, cropping if needed */
+            border-top-left-radius: 0.75rem; /* Match card's top-left corner */
+            border-top-right-radius: 0.75rem; /* Match card's top-right corner */
+        }
+        .card-body {
+            padding: 1.25rem; /* Padding inside the card's content area */
+        }
+        .card-title {
+            font-size: 1.25rem; /* Larger font for product titles */
+            font-weight: bold; /* Bold titles */
+            margin-bottom: 0.5rem; /* Space below the title */
+        }
+        .card-text {
+            font-size: 0.9rem; /* Smaller font for descriptions/categories */
+            color: #6c757d; /* Muted text color */
+        }
+        .price {
+            font-size: 1.1rem; /* Slightly larger font for prices */
+            font-weight: bold; /* Bold prices */
+            color: #007bff; /* Bootstrap's primary blue color for prices */
+            margin-top: 1rem; /* Space above the price */
+        }
+        .loading-spinner {
+            display: flex; /* Use flexbox to center the spinner */
+            justify-content: center; /* Center horizontally */
+            align-items: center; /* Center vertically */
+            height: 200px; /* Give some height for the spinner to be visible */
+        }
+        .alert-message {
+            margin-top: 1.5rem; /* Space above the error message */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center mb-4 text-3xl font-bold text-gray-800">Our Awesome Products</h1>
+
+        <!--
+            This div will show a loading spinner while we fetch data.
+            'd-none' (display: none) from Bootstrap hides it initially.
+        -->
+        <div id="loadingIndicator" class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading products...</span>
+            </div>
+        </div>
+
+        <!--
+            This is where our product cards will be inserted by JavaScript.
+            'row' from Bootstrap creates a flexible row for our cards.
+        -->
+        <div id="product-list" class="row">
+            </div>
+
+        <!--
+            This div will show an error message if the API call fails.
+            'd-none' (display: none) from Bootstrap hides it initially.
+        -->
+        <div id="errorMessage" class="alert alert-danger alert-message d-none" role="alert">
+            Oops! Something went wrong. We couldn't load the products.
+        </div>
+    </div>
+
+    <!--
+        Step 4: Include Bootstrap JavaScript.
+        This is needed for some Bootstrap components, though not strictly for this simple display.
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        /*
+            Step 5: Write our JavaScript code to fetch and display products.
+        */
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get references to the HTML elements we'll interact with
+            const productListDiv = document.getElementById('product-list');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const errorMessageDiv = document.getElementById('errorMessage');
+
+            // This is the API endpoint we'll fetch data from.
+            // For beginners, we use a public "fake store" API that provides product data.
+            const API_URL = 'https://fakestoreapi.com/products?limit=30'; // Fetches 10 products
+
+            /**
+             * Function to fetch product data from the API.
+             * It uses 'async/await' to handle the fetching process more easily.
+             */
+            async function fetchProducts() {
+                try {
+                    // Show the loading spinner before starting the fetch
+                    loadingIndicator.classList.remove('d-none');
+                    // Hide any previous error messages
+                    errorMessageDiv.classList.add('d-none');
+
+                    // Make the API call using the 'fetch' function
+                    const response = await fetch(API_URL);
+
+                    // Check if the network request was successful (status code 200-299)
+                    if (!response.ok) {
+                        // If not successful, throw an error to be caught by the 'catch' block
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    // Parse the JSON response into a JavaScript array of product objects
+                    const products = await response.json();
+                    return products; // Return the fetched products
+                } catch (error) {
+                    // If any error occurs during fetch, log it and show the error message
+                    console.error('Error fetching products:', error);
+                    errorMessageDiv.classList.remove('d-none'); // Show the error message to the user
+                    return []; // Return an empty array so the program doesn't crash
+                } finally {
+                    // This code runs whether the fetch was successful or not
+                    loadingIndicator.classList.add('d-none'); // Hide the loading spinner
+                }
+            }
+
+            /**
+             * Function to create an HTML "card" for a single product.
+             * @param {Object} product - An object containing product details (title, price, image, etc.).
+             */
+            function createProductCard(product) {
+                // Create a div for the column (Bootstrap's grid system)
+                const colDiv = document.createElement('div');
+                // 'col-12' for full width on small screens, 'col-md-6' for half width on medium,
+                // 'col-lg-4' for one-third width on large screens. 'd-flex align-items-stretch'
+                // ensures cards in a row have equal height.
+                colDiv.className = 'col-12 col-md-6 col-lg-4 d-flex align-items-stretch';
+
+                // Create the main card div
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'card product-card w-100'; // 'w-100' makes it take full width of its column
+
+                // Create the image element
+                const img = document.createElement('img');
+                // Use product.image, or a placeholder if no image URL is available
+                img.src = product.image || 'https://placehold.co/400x200/cccccc/333333?text=No+Image';
+                img.alt = product.title; // Alt text for accessibility
+                img.className = 'product-image';
+                // Add an error handler for images that fail to load
+                img.onerror = function() {
+                    this.src = 'https://placehold.co/400x200/cccccc/333333?text=Image+Error';
+                };
+
+                // Create the card body div (where text content goes)
+                const cardBodyDiv = document.createElement('div');
+                cardBodyDiv.className = 'card-body d-flex flex-column'; // Use flexbox for vertical alignment
+
+                // Create and populate the title
+                const title = document.createElement('h5');
+                title.className = 'card-title';
+                title.textContent = product.title;
+
+                // Create and populate the category
+                const category = document.createElement('p');
+                category.className = 'card-text text-muted';
+                category.textContent = product.category;
+
+                // Create and populate the description (truncate if too long)
+                const description = document.createElement('p');
+                description.className = 'card-text flex-grow-1'; // Allows description to take available space
+                description.textContent = product.description.length > 100 ?
+                                          product.description.substring(0, 97) + '...' :
+                                          product.description;
+
+                // Create and populate the price
+                const price = document.createElement('p');
+                price.className = 'price mt-auto'; // 'mt-auto' pushes the price to the bottom of the card body
+                price.textContent = `$${product.price.toFixed(2)}`; // Format price to 2 decimal places
+
+                // Create a "View Details" button
+                const button = document.createElement('a');
+                button.href = '#'; // Placeholder link
+                button.className = 'btn btn-primary mt-3 rounded-md'; // Bootstrap button styling
+                button.textContent = 'View Details';
+
+                // Append all elements to the card body
+                cardBodyDiv.appendChild(title);
+                cardBodyDiv.appendChild(category);
+                cardBodyDiv.appendChild(description);
+                cardBodyDiv.appendChild(price);
+                cardBodyDiv.appendChild(button);
+
+                // Append image and card body to the main card div
+                cardDiv.appendChild(img);
+                cardDiv.appendChild(cardBodyDiv);
+
+                // Append the complete card to the column div
+                colDiv.appendChild(cardDiv);
+                return colDiv; // Return the entire column div with the card inside
+            }
+
+            /**
+             * Function to render (display) the list of products on the page.
+             * @param {Array} products - An array of product objects.
+             */
+            function renderProducts(products) {
+                productListDiv.innerHTML = ''; // Clear any existing content in the product list area
+
+                if (products.length === 0) {
+                    // If no products are found (e.g., API returned empty array), display a message
+                    productListDiv.innerHTML = '<p class="text-center text-muted mt-4">No products found. Try refreshing the page!</p>';
+                    return;
+                }
+
+                // Loop through each product and create/append its card
+                products.forEach(product => {
+                    const card = createProductCard(product);
+                    productListDiv.appendChild(card);
+                });
+            }
+
+            // This is the main action:
+            // When the page loads, fetch the products and then render them.
+            fetchProducts().then(products => {
+                renderProducts(products);
+            });
+        });
+    </script>
+</body>
+</html>
